@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Neurova | MDCAT Preparation</title>
+  <meta name="description" content="Neurova: smarter MDCAT exam preparation.">
+  <meta property="og:title" content="Neurova | MDCAT Preparation">
+  <meta property="og:description" content="Smarter MDCAT exam preparation.">
+  <meta property="og:type" content="website">
+  <meta name="robots" content="noindex, nofollow">
+  <style>
+    :root { color-scheme: light dark; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      padding: 24px;
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      text-align: center;
+    }
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 4px solid rgba(128, 128, 128, .3);
+      border-top-color: #4f46e5;
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #manual {
+      display: none;
+      flex-direction: column;
+      gap: 10px;
+      width: 100%;
+      max-width: 320px;
+    }
+    #manual a {
+      display: block;
+      padding: 12px 20px;
+      border-radius: 8px;
+      background: #4f46e5;
+      color: #fff;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    #manual a.secondary {
+      background: #e5e7eb;
+      color: #171717;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .spinner { animation: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="spinner" id="spinner" aria-hidden="true"></div>
+  <p id="status" role="status" aria-live="polite">Taking you to Neurova...</p>
+
+  <div id="manual">
+    <p>Not redirecting? Choose a version:</p>
+    <a id="link-a" href="https://neurova-one.vercel.app/?from=go&amp;variant=a">Open Neurova</a>
+    <a id="link-b" class="secondary" href="https://neurova-two.vercel.app/?from=go&amp;variant=b">Open Neurova (alternate)</a>
+  </div>
+
+  <noscript>
+    <p>Automatic redirection needs JavaScript. Choose a version:</p>
+    <p><a href="https://neurova-one.vercel.app/?from=go&amp;variant=a">Open Neurova</a></p>
+    <p><a href="https://neurova-two.vercel.app/?from=go&amp;variant=b">Open Neurova (alternate)</a></p>
+  </noscript>
+
+  <script>
+    (function () {
+      // ===== SETTINGS: edit these destinations and weights =====
+      var VARIANTS = [
+        { id: "a", url: "https://neurova-one.vercel.app/", weight: 50 },
+        { id: "b", url: "https://neurova-two.vercel.app/", weight: 50 }
+      ];
+      var KEY = "neurova_split_variant";
+      var COOKIE_DAYS = 365;
+      var FALLBACK_MS = 2500;
+      // =========================================================
+
+      var manual = document.getElementById("manual");
+      var spinner = document.getElementById("spinner");
+      var status = document.getElementById("status");
+      var ua = navigator.userAgent || "";
+      var isBot = /bot|crawl|spider|slurp|facebookexternalhit|whatsapp|telegram|twitterbot|linkedinbot|preview/i.test(ua);
+
+      function showManual(message) {
+        spinner.style.display = "none";
+        status.textContent = message || "Choose a Neurova version:";
+        manual.style.display = "flex";
+      }
+
+      function find(id) {
+        for (var i = 0; i < VARIANTS.length; i++) {
+          if (VARIANTS[i].id === id) return VARIANTS[i];
+        }
+        return null;
+      }
+
+      function readCookie() {
+        var prefix = KEY + "=";
+        var cookies = document.cookie ? document.cookie.split("; ") : [];
+        for (var i = 0; i < cookies.length; i++) {
+          if (cookies[i].indexOf(prefix) === 0) {
+            try { return decodeURIComponent(cookies[i].slice(prefix.length)); }
+            catch (e) { return null; }
+          }
+        }
+        return null;
+      }
+
+      function readStored() {
+        var value = null;
+        try { value = localStorage.getItem(KEY); } catch (e) {}
+        if (!value) value = readCookie();
+        return value;
+      }
+
+      function store(id) {
+        try { localStorage.setItem(KEY, id); } catch (e) {}
+        try {
+          document.cookie = KEY + "=" + encodeURIComponent(id) +
+            "; max-age=" + (COOKIE_DAYS * 86400) +
+            "; path=/; SameSite=Lax; Secure";
+        } catch (e) {}
+      }
+
+      function clearStored() {
+        try { localStorage.removeItem(KEY); } catch (e) {}
+        try {
+          document.cookie = KEY + "=; max-age=0; path=/; SameSite=Lax; Secure";
+        } catch (e) {}
+      }
+
+      function pickWeighted() {
+        var total = 0;
+        for (var i = 0; i < VARIANTS.length; i++) {
+          total += Math.max(0, Number(VARIANTS[i].weight) || 0);
+        }
+        if (!VARIANTS.length) return null;
+        if (total <= 0) return VARIANTS[0];
+
+        var r = Math.random() * total;
+        var accumulated = 0;
+        for (var j = 0; j < VARIANTS.length; j++) {
+          accumulated += Math.max(0, Number(VARIANTS[j].weight) || 0);
+          if (r < accumulated) return VARIANTS[j];
+        }
+        return VARIANTS[VARIANTS.length - 1];
+      }
+
+      function trackedUrl(variant) {
+        var url = new URL(variant.url);
+        url.searchParams.set("from", "go");
+        url.searchParams.set("variant", variant.id);
+        return url.href;
+      }
+
+      // Keep the visible fallback links in sync with the configured destinations.
+      if (VARIANTS.length >= 2) {
+        document.getElementById("link-a").href = trackedUrl(VARIANTS[0]);
+        document.getElementById("link-b").href = trackedUrl(VARIANTS[1]);
+      }
+
+      // Preview bots should see the page and the two working manual links.
+      // Do not navigate them away, since they generate link previews.
+      if (isBot) {
+        showManual("Choose a Neurova version:");
+        return;
+      }
+
+      // Reveal manual choices if the automatic redirect fails for any reason.
+      var fallbackTimer = window.setTimeout(function () {
+        showManual("Automatic redirection did not work. Choose a version:");
+      }, FALLBACK_MS);
+
+      try {
+        var params = new URLSearchParams(window.location.search);
+
+        // ?reset=1 clears the saved choice and triggers a fresh random assignment.
+        if (params.has("reset")) clearStored();
+
+        var chosen = null;
+        var forced = params.get("v");
+
+        // Testing override: ?v=a or ?v=b. This override is intentionally not saved.
+        if (forced) chosen = find(forced);
+
+        // Otherwise, keep a returning visitor on their previous variant.
+        if (!chosen) chosen = find(readStored());
+
+        // Assign new visitors using the configured weights (50/50 by default).
+        if (!chosen) {
+          chosen = pickWeighted();
+          if (!chosen) throw new Error("No redirect destinations are configured.");
+          store(chosen.id);
+        }
+
+        var destination = new URL(chosen.url);
+
+        // Forward non-control query parameters, such as UTM campaign tags.
+        params.forEach(function (value, name) {
+          if (name !== "v" && name !== "reset") {
+            destination.searchParams.set(name, value);
+          }
+        });
+
+        // These tracking values are controlled by the splitter itself.
+        destination.searchParams.set("from", "go");
+        destination.searchParams.set("variant", chosen.id);
+        destination.hash = window.location.hash;
+
+        window.clearTimeout(fallbackTimer);
+        window.location.replace(destination.href);
+      } catch (error) {
+        window.clearTimeout(fallbackTimer);
+        showManual("We couldn't redirect you automatically. Choose a version:");
+      }
+    })();
+  </script>
+</body>
+</html>
